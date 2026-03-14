@@ -7,7 +7,7 @@ const { validateBody } = require('../middleware/validate');
 const {
   createAssignmentSchema,
   updateAssignmentSchema,
-  statusTransitionSchema,
+  statusTransitionSchema
 } = require('../validators/assignments');
 
 const router = express.Router();
@@ -17,6 +17,16 @@ const parsePagination = (req) => {
   const limit = Math.min(Math.max(parseInt(req.query.limit || '10', 10), 1), 50);
   const skip = (page - 1) * limit;
   return { page, limit, skip };
+};
+
+const parseDate = (value) => {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    const err = new Error('Invalid due date');
+    err.status = 400;
+    throw err;
+  }
+  return parsed;
 };
 
 router.use(authRequired);
@@ -40,14 +50,14 @@ router.get('/', async (req, res, next) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
-      Assignment.countDocuments(filter),
+      Assignment.countDocuments(filter)
     ]);
 
     res.json({
       items,
       page,
       total,
-      totalPages: Math.ceil(total / limit),
+      totalPages: Math.ceil(total / limit)
     });
   } catch (err) {
     next(err);
@@ -88,8 +98,8 @@ router.post('/', requireRole('teacher'), validateBody(createAssignmentSchema), a
     const assignment = await Assignment.create({
       title,
       description,
-      dueDate: new Date(dueDate),
-      createdBy: req.user._id,
+      dueDate: parseDate(dueDate),
+      createdBy: req.user._id
     });
 
     res.status(201).json(assignment);
@@ -121,7 +131,7 @@ router.patch('/:id', requireRole('teacher'), validateBody(updateAssignmentSchema
 
     if (req.body.title) assignment.title = req.body.title;
     if (req.body.description) assignment.description = req.body.description;
-    if (req.body.dueDate) assignment.dueDate = new Date(req.body.dueDate);
+    if (req.body.dueDate) assignment.dueDate = parseDate(req.body.dueDate);
 
     await assignment.save();
     res.json(assignment);
@@ -179,7 +189,7 @@ router.post('/:id/status', requireRole('teacher'), validateBody(statusTransition
     const transitions = {
       Draft: 'Published',
       Published: 'Completed',
-      Completed: null,
+      Completed: null
     };
 
     if (transitions[current] !== nextStatus) {
